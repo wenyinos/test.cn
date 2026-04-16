@@ -64,15 +64,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
         exit;
     }
 
-    $id     = (int)($_POST['id'] ?? 0);
-    $domain = strtolower(trim($_POST['domain'] ?? ''));
-    $tpl    = $_POST['template'] ?? '302';
-    $url    = trim($_POST['target_url'] ?? '');
-    $status = ($_POST['status'] ?? '') === 'paused' ? 'paused' : 'active';
-    $delay  = max(1, min(60, (int)($_POST['delay'] ?? 3)));
-    $img    = trim($_POST['img_url'] ?? '');
-    $title  = trim($_POST['site_title'] ?? '');
-    $desc   = trim($_POST['site_description'] ?? '');
+    $id      = (int)($_POST['id'] ?? 0);
+    $domain  = strtolower(trim($_POST['domain'] ?? ''));
+    $proto   = ($_POST['protocol'] ?? '') === 'http' ? 'http' : 'https';
+    $tpl     = $_POST['template'] ?? '302';
+    $url     = trim($_POST['target_url'] ?? '');
+    $status  = ($_POST['status'] ?? '') === 'paused' ? 'paused' : 'active';
+    $delay   = max(1, min(60, (int)($_POST['delay'] ?? 3)));
+    $img     = trim($_POST['img_url'] ?? '');
+    $title   = trim($_POST['site_title'] ?? '');
+    $desc    = trim($_POST['site_description'] ?? '');
 
     $template_fields = $templates[$tpl]['fields'] ?? [];
     $is_nav_template = in_array('nav', $template_fields, true);
@@ -123,30 +124,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
             if (!$own->fetch()) {
                 echo json_encode(['ok'=>false,'error'=>'无权限操作该域名']); exit;
             }
-            $chk = $db->prepare("SELECT id FROM `domains` WHERE `domain`=? AND `id`!=?");
-            $chk->execute([$domain, $id]);
+            $chk = $db->prepare("SELECT id FROM `domains` WHERE `domain`=? AND `protocol`=? AND `id`!=?");
+            $chk->execute([$domain, $proto, $id]);
             if ($chk->fetch()) {
-                echo json_encode(['ok' => false, 'error' => '该域名已被其他记录占用']);
+                echo json_encode(['ok' => false, 'error' => '该域名+协议组合已被其他记录占用']);
                 exit;
             }
             $db->prepare(
-                "UPDATE `domains` SET `domain`=?,`target_url`=?,`template`=?,`status`=?,
+                "UPDATE `domains` SET `domain`=?,`protocol`=?,`target_url`=?,`template`=?,`status`=?,
                  `delay`=?,`img_url`=?,`site_title`=?,`site_description`=? WHERE `id`=?"
-            )->execute([$domain,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$id]);
-            write_admin_log("编辑域名 id={$id} domain={$domain}");
+            )->execute([$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$id]);
+            write_admin_log("编辑域名 id={$id} domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'updated']);
         } else {
             // 新增
-            $chk = $db->prepare("SELECT id FROM `domains` WHERE `domain`=?");
-            $chk->execute([$domain]);
+            $chk = $db->prepare("SELECT id FROM `domains` WHERE `domain`=? AND `protocol`=?");
+            $chk->execute([$domain, $proto]);
             if ($chk->fetch()) {
-                echo json_encode(['ok' => false, 'error' => '该域名已存在']);
+                echo json_encode(['ok' => false, 'error' => '该域名+协议组合已存在']);
                 exit;
             }
             $db->prepare(
-                "INSERT INTO `domains` (`domain`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?)"
-            )->execute([$domain,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,current_uid()]);
-            write_admin_log("新增域名 domain={$domain}");
+                "INSERT INTO `domains` (`domain`,`protocol`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?,?)"
+            )->execute([$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,current_uid()]);
+            write_admin_log("新增域名 domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'added']);
         }
     } catch (Throwable $e) {
@@ -230,19 +231,20 @@ require dirname(__DIR__) . '/_layout_header.php';
 
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>域名</th><th>模板</th><th>添加人</th><th>今日PV</th><th>今日IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+      <thead><tr><th>#</th><th>域名</th><th>协议</th><th>模板</th><th>添加人</th><th>今日PV</th><th>今日IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
       <tbody>
       <?php if (empty($rows)): ?>
-        <tr><td colspan="9" style="padding:28px;text-align:center" class="text-muted">暂无数据</td></tr>
+        <tr><td colspan="10" style="padding:28px;text-align:center" class="text-muted">暂无数据</td></tr>
       <?php else: foreach ($rows as $row): ?>
         <tr>
           <td class="text-muted"><?= $row['id'] ?></td>
           <td>
             <div style="display:flex;align-items:center;gap:8px">
-              <a href="http://<?= e($row['domain']) ?>" target="_blank"><?= e($row['domain']) ?></a>
-              <button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="showQr('<?=e(addslashes($row['domain']))?>')" title="二维码">&#9641;</button>
+              <a href="<?= e($row['protocol']) ?>://<?= e($row['domain']) ?>" target="_blank"><?= e($row['domain']) ?></a>
+              <button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="showQr('<?=e(addslashes($row['domain']))?>','<?=e($row['protocol'])?>')" title="二维码">&#9641;</button>
             </div>
           </td>
+          <td><span class="badge" style="<?= $row['protocol']==='https' ? 'background:#1a7f37;color:#fff' : 'background:#6b7280;color:#fff' ?>"><?= e($row['protocol']) ?></span></td>
           <td><span class="badge badge-warning"><?= e($templates[$row['template']]['label'] ?? $row['template']) ?></span></td>
           <td class="text-muted text-sm"><?= e($row['owner_name']??'—') ?></td>
           <td><a href="/admin/domains/stat.php?id=<?=$row['id']?>" class="badge badge-active" style="text-decoration:none"><?=(int)$row['today_pv']?></a></td>
@@ -293,8 +295,14 @@ require dirname(__DIR__) . '/_layout_header.php';
     <div id="dm-err" style="display:none;padding:10px 14px;background:#fee;border:1px solid #fcc;border-radius:6px;color:#c00;margin-bottom:14px;font-size:14px"></div>
     <div class="form-group">
       <label class="form-label">绑定域名 <span style="color:red">*</span></label>
-      <input type="text" id="f-domain" class="form-control" placeholder="example.com">
-      <p class="form-hint">不含 http://，仅填写域名本身</p>
+      <div style="display:flex;gap:8px">
+        <select id="f-protocol" class="form-control" style="max-width:120px">
+          <option value="https">https://</option>
+          <option value="http">http://</option>
+        </select>
+        <input type="text" id="f-domain" class="form-control" placeholder="example.com" style="flex:1">
+      </div>
+      <p class="form-hint">仅填写域名本身，协议在左侧选择</p>
     </div>
     <div class="form-group">
       <label class="form-label">跳转模板 <span style="color:red">*</span></label>
@@ -563,6 +571,7 @@ require dirname(__DIR__) . '/_layout_header.php';
     editId=0;
     // 清空所有字段
     $('f-domain').value=''; 
+    $('f-protocol').value='https';
     $('f-url').value=''; 
     $('f-delay').value='3';
     $('f-img').value=''; 
@@ -579,6 +588,7 @@ require dirname(__DIR__) . '/_layout_header.php';
       dmTitle.textContent='编辑域名';
       editId=row.id;
       $('f-domain').value=row.domain||'';
+      $('f-protocol').value=row.protocol||'https';
       $('f-tpl').value=row.template||'302';
       $('f-delay').value=row.delay||3;
       $('f-img').value=row.img_url||'';
@@ -621,10 +631,11 @@ require dirname(__DIR__) . '/_layout_header.php';
   document.body.appendChild(qrModal);
   qrModal.addEventListener('click',function(e){if(e.target===qrModal)qrModal.style.display='none';});
 
-  window.showQr = function(domain){
-    document.getElementById('qr-title').textContent = domain;
+  window.showQr = function(domain, protocol){
+    var url = (protocol || 'https') + '://' + domain;
+    document.getElementById('qr-title').textContent = url;
     var box = document.getElementById('qr-box');
-    box.innerHTML = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=http://'+encodeURIComponent(domain)+'" style="border-radius:8px;width:180px;height:180px">';
+    box.innerHTML = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(url)+'" style="border-radius:8px;width:180px;height:180px">';
     qrModal.style.display='flex';
   };
 
@@ -681,6 +692,7 @@ require dirname(__DIR__) . '/_layout_header.php';
     fd.append('csrf_token',CSRF);
     fd.append('id',editId);
     fd.append('domain',$('f-domain').value);
+    fd.append('protocol',$('f-protocol').value);
     fd.append('template',$('f-tpl').value);
     fd.append('target_url',targetUrl);
     fd.append('delay',$('f-delay').value);

@@ -36,11 +36,19 @@ if (strpos($uri, '/admin') === 0 || strpos($uri, '/install') === 0 || strpos($ur
 
 // ── 查询域名配置 ──────────────────────────────────────────
 try {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') === '443' ? 'https' : 'http';
     $stmt = get_db()->prepare(
-        "SELECT * FROM `domains` WHERE `domain` = ? LIMIT 1"
+        "SELECT * FROM `domains` WHERE `domain` = ? AND `protocol` = ? LIMIT 1"
     );
-    $stmt->execute([$host]);
+    $stmt->execute([$host, $protocol]);
     $rule = $stmt->fetch();
+    if (!$rule) {
+        $stmt2 = get_db()->prepare(
+            "SELECT * FROM `domains` WHERE `domain` = ? LIMIT 1"
+        );
+        $stmt2->execute([$host]);
+        $rule = $stmt2->fetch();
+    }
 } catch (Throwable $e) {
     error_log('JumpHost DB error: ' . $e->getMessage());
     http_response_code(503);

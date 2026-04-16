@@ -9,7 +9,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 域名跳转表
 CREATE TABLE IF NOT EXISTS `domains` (
   `id`               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `domain`           VARCHAR(191) NOT NULL UNIQUE COMMENT '绑定域名',
+  `domain`           VARCHAR(191) NOT NULL COMMENT '绑定域名',
+  `protocol`         ENUM('http','https') NOT NULL DEFAULT 'https' COMMENT '协议',
   `target_url`       TEXT         NOT NULL COMMENT '目标URL或JSON多链接',
   `template`         VARCHAR(50)  NOT NULL DEFAULT '302' COMMENT '模板名称',
   `status`           ENUM('active','paused') NOT NULL DEFAULT 'active',
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `domains` (
   `owner_id`         INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '所属用户ID',
   `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_domain_protocol` (`domain`, `protocol`),
   INDEX `idx_domain`   (`domain`),
   INDEX `idx_status`   (`status`),
   INDEX `idx_owner_id` (`owner_id`)
