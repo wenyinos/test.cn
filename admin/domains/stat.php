@@ -15,6 +15,30 @@ $stmt->execute(array_merge([$id],$dp));
 $domain = $stmt->fetch();
 if (!$domain) { http_response_code(404); exit('域名不存在或无权限'); }
 
+// 回填归属地
+$backfill_count = 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'backfill_location') {
+    csrf_verify();
+    try {
+        $empty_ips = $db->prepare("SELECT DISTINCT `ip` FROM `access_logs` WHERE `domain_id`=? AND (`location` IS NULL OR `location`='') LIMIT 100");
+        $empty_ips->execute([$id]);
+        foreach ($empty_ips->fetchAll() as $row) {
+            $ip = $row['ip'];
+            $loc = get_ip_location($ip);
+            if ($loc !== '') {
+                $up = $db->prepare("UPDATE `access_logs` SET `location`=? WHERE `domain_id`=? AND `ip`=? AND (`location` IS NULL OR `location`='')");
+                $up->execute([$loc, $id, $ip]);
+                $backfill_count++;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('backfill_location error: ' . $e->getMessage());
+    }
+    header('Location: ?id=' . $id . '&range=' . $range . '&backfill=' . $backfill_count);
+    exit;
+}
+$backfill_count = (int)($_GET['backfill'] ?? 0);
+
 // 时间范围
 $range = $_GET['range'] ?? '7';
 $range = in_array($range,['1','7','30']) ? $range : '7';
@@ -52,17 +76,11 @@ $chart_data=array_values($chart_map);
 // 归属地分布
 $location_labels = []; $location_data = [];
 try {
-    // 检查是否有 location 列
-    $cols = $db->query("SHOW COLUMNS FROM `access_logs`")->fetchAll(PDO::FETCH_COLUMN);
-    $has_location = in_array('location', $cols);
-    
-    if ($has_location) {
-        $rs=$db->prepare("SELECT l.location,COUNT(*) AS cnt FROM `access_logs` l WHERE l.domain_id=? AND {$where_time} AND l.location IS NOT NULL AND l.location != '' GROUP BY l.location ORDER BY cnt DESC LIMIT 8");
-        $rs->execute([$id]); 
-        $loc_rows = $rs->fetchAll();
-        $location_labels = array_column($loc_rows, 'location');
-        $location_data = array_map('intval', array_column($loc_rows, 'cnt'));
-    }
+    $rs=$db->prepare("SELECT l.location,COUNT(*) AS cnt FROM `access_logs` l WHERE l.domain_id=? AND {$where_time} AND l.location IS NOT NULL AND l.location != '' GROUP BY l.location ORDER BY cnt DESC LIMIT 8");
+    $rs->execute([$id]); 
+    $loc_rows = $rs->fetchAll();
+    $location_labels = array_column($loc_rows, 'location');
+    $location_data = array_map('intval', array_column($loc_rows, 'cnt'));
 } catch(Throwable $e){}
 
 // 设备
@@ -78,10 +96,17 @@ try {
 } catch(Throwable $e){}
 
 // 最近记录
-$recent=[];
+$recent=[]; $hit_map=[];
 try {
-    $rs=$db->prepare("SELECT l.created_at,l.ip,l.user_agent FROM `access_logs` l WHERE l.domain_id=? ORDER BY l.id DESC LIMIT 20");
+    $rs=$db->prepare("SELECT l.created_at,l.ip,l.location,l.user_agent FROM `access_logs` l WHERE l.domain_id=? ORDER BY l.id DESC LIMIT 20");
     $rs->execute([$id]); $recent=$rs->fetchAll();
+    if (!empty($recent)) {
+        $ips = array_unique(array_column($recent, 'ip'));
+        $ph = implode(',', array_fill(0, count($ips), '?'));
+        $hc=$db->prepare("SELECT ip,COUNT(*) AS cnt FROM `access_logs` WHERE domain_id=? AND ip IN({$ph}) GROUP BY ip");
+        $hc->execute(array_merge([$id], $ips));
+        foreach ($hc->fetchAll() as $hr) $hit_map[$hr['ip']]=(int)$hr['cnt'];
+    }
 } catch(Throwable $e){}
 
 $page_title = e($domain['domain']).' 统计';
@@ -116,7 +141,17 @@ require dirname(__DIR__) . '/_layout_header.php';
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
   <div class="card">
-    <div class="card-header"><span class="card-title">归属地分布</span></div>
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+      <span class="card-title">归属地分布</span>
+      <form method="POST" style="display:inline">
+        <input type="hidden" name="csrf_token" value="<?=csrf_token()?>">
+        <input type="hidden" name="action" value="backfill_location">
+        <button type="submit" class="btn btn-ghost btn-sm">刷新归属地</button>
+      </form>
+    </div>
+    <?php if($backfill_count > 0): ?>
+    <div style="padding:4px 16px;font-size:12px;color:#22d3a5">已补全 <?= $backfill_count ?> 个IP的归属地</div>
+    <?php endif; ?>
     <div style="max-width:260px;margin:0 auto"><canvas id="chartLocation"></canvas></div>
   </div>
   <div class="card">
@@ -129,14 +164,18 @@ require dirname(__DIR__) . '/_layout_header.php';
   <div class="card-header"><span class="card-title">最近访问记录</span></div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>时间</th><th>IP</th><th>User Agent</th></tr></thead>
+      <thead><tr><th>时间</th><th>IP</th><th>IP地区</th><th>访问次数</th><th>User Agent</th></tr></thead>
       <tbody>
       <?php if(empty($recent)): ?>
-        <tr><td colspan="3" class="text-muted" style="padding:24px;text-align:center">暂无记录</td></tr>
-      <?php else: foreach($recent as $r): ?>
+        <tr><td colspan="5" class="text-muted" style="padding:24px;text-align:center">暂无记录</td></tr>
+      <?php else: foreach($recent as $r):
+          $loc = $r['location'] ?? '';
+      ?>
         <tr>
           <td class="text-muted text-sm"><?=e($r['created_at'])?></td>
           <td><?=e($r['ip'])?></td>
+          <td class="text-muted text-sm"><?=e($loc)?></td>
+          <td><?=number_format($hit_map[$r['ip']] ?? 0)?></td>
           <td class="text-muted text-sm truncate"><?=e($r['user_agent'])?></td>
         </tr>
       <?php endforeach; endif; ?>

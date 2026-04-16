@@ -15,6 +15,7 @@ define('ADMIN_PATH',    ROOT_PATH . '/admin');
 ini_set('display_errors', 0); ini_set('log_errors', 1);
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Shanghai');
+require_once __DIR__ . '/ip_api_config.php';
 function get_db(): PDO {
     static $pdo = null;
     if ($pdo === null) {
@@ -468,19 +469,16 @@ function get_ip_location(string $ip): string {
         return '本地';
     }
     
+    // 主 API
     try {
-        // 使用配置的 API 地址
         $api_url = IP_API_URL . '?ip=' . urlencode($ip);
-        
         $ctx = stream_context_create([
             'http' => [
                 'timeout' => IP_API_TIMEOUT,
                 'ignore_errors' => true
             ]
         ]);
-        
         $response = @file_get_contents($api_url, false, $ctx);
-        
         if ($response) {
             $data = json_decode($response, true);
             if ($data && isset($data['code']) && $data['code'] === 200) {
@@ -489,6 +487,32 @@ function get_ip_location(string $ip): string {
         }
     } catch (Throwable $e) {
         error_log('get_ip_location error: ' . $e->getMessage());
+    }
+    
+    // 备用 API（ip-api.com，精确到省市）
+    if ($location === '' && defined('IP_API_FALLBACK_URL')) {
+        try {
+            $fallback_url = IP_API_FALLBACK_URL . urlencode($ip) . '?lang=zh-CN&fields=status,message,regionName,city';
+            $ctx2 = stream_context_create([
+                'http' => [
+                    'timeout' => IP_API_FALLBACK_TIMEOUT,
+                    'ignore_errors' => true
+                ]
+            ]);
+            $response2 = @file_get_contents($fallback_url, false, $ctx2);
+            if ($response2) {
+                $data2 = json_decode($response2, true);
+                if ($data2 && ($data2['status'] ?? '') === 'success') {
+                    $parts = array_filter([
+                        $data2['regionName'] ?? '',
+                        $data2['city'] ?? '',
+                    ], function($v) { return $v !== ''; });
+                    $location = implode(' ', $parts);
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('get_ip_location fallback error: ' . $e->getMessage());
+        }
     }
     
     $cache[$ip] = $location;
