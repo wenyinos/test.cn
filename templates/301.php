@@ -3,6 +3,8 @@
  * 301永久重定向模板
  * @label 301永久重定向
  * @fields url
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

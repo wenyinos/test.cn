@@ -3,6 +3,8 @@
  * 彩色导航跳转模板
  * @label 彩色背景导航
  * @fields nav,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

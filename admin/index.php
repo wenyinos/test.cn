@@ -1,6 +1,8 @@
 <?php
 /**
  * 后台首页 — 数据统计面板
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once dirname(__DIR__) . '/config/config.php';
 admin_auth();

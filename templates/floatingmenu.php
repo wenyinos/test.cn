@@ -3,6 +3,8 @@
  * 悬浮按钮导航模板
  * @label 悬浮按钮导航
  * @fields nav,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

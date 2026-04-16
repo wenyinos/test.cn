@@ -3,6 +3,8 @@
  * 绿色导航跳转模板
  * @label 绿色导航页
  * @fields nav,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

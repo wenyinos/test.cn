@@ -2,6 +2,8 @@
 /**
  * JumpHost 安装向导
  * 流程：环境检查 → 配置安装 → 完成
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 
 $config_file = dirname(__DIR__) . '/config/config.php';

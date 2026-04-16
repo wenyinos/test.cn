@@ -1,4 +1,8 @@
 <?php
+/**
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
+ */
 if (!defined('ROOT_PATH')) {
     http_response_code(403);
     exit('Forbidden');

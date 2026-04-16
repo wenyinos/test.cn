@@ -12,6 +12,8 @@
  * 可选参数：
  *   ?format=json  → 返回 JSON：{"url":"..."}
  *   ?format=url   → 纯文本返回图片URL
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 
 $format = strtolower(trim($_GET['format'] ?? ''));

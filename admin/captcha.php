@@ -1,6 +1,8 @@
 <?php
 /**
  * 验证码生成
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

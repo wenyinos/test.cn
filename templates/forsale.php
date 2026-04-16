@@ -3,6 +3,8 @@
  * 域名转让模板
  * @label 域名转让出售
  * @fields url,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

@@ -3,6 +3,8 @@
  * 卡片式导航模板
  * @label 卡片式导航
  * @fields nav,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

@@ -3,6 +3,8 @@
  * 基础导航跳转模板
  * @label 渐变卡片导航
  * @fields nav,title,desc,img
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

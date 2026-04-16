@@ -1,6 +1,8 @@
 <?php
 /**
  * 操作日志
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 admin_auth();

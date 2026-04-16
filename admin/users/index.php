@@ -1,6 +1,8 @@
 <?php
 /**
  * 用户管理 — 权限隔离版（弹窗交互）
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 admin_auth();

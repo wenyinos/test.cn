@@ -1,4 +1,8 @@
 <?php
+/**
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
+ */
 define('DB_HOST',    'localhost');
 define('DB_PORT',    '3306');
 define('DB_NAME',    'host_78rg_cc');

@@ -3,6 +3,8 @@
  * 图片点击跳转模板
  * @label 图片点击跳转
  * @fields url,img,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

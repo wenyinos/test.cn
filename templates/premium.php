@@ -3,6 +3,8 @@
  * 高级导航页模板
  * @label 高级导航页
  * @fields nav,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

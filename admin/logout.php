@@ -1,6 +1,8 @@
 <?php
 /**
  * 登出
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once dirname(__DIR__) . '/config/config.php';
 session_start_safe();

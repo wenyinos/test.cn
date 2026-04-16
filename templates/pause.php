@@ -3,6 +3,8 @@
  * 暂停页面模板
  * @label 暂停页面
  * @fields
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 
 // config.php 由 index.php 统一加载，此处做兼容处理

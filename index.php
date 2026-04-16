@@ -1,6 +1,8 @@
 <?php
 /**
  * JumpHost 跳转分发入口
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 
 require_once __DIR__ . '/config/config.php';

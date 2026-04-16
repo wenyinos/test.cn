@@ -1,6 +1,8 @@
 <?php
 /**
  * 跳转管理 — 列表页（含新增/编辑/删除，全部在本文件处理）
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 admin_auth();

@@ -3,6 +3,8 @@
  * 黑金品牌落地页
  * @label 黑金品牌落地页
  * @fields nav,title,desc,img,blackgold
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 

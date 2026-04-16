@@ -1,6 +1,8 @@
 <?php
 /**
  * 资源管理 — 图片上传 / 图库管理
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 admin_auth();

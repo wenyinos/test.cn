@@ -2,6 +2,8 @@
 /**
  * IP API 配置文件
  * 部署后修改 IP_API_URL 为实际的 API 地址
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 
 // 主 API 服务地址

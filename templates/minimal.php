@@ -3,6 +3,8 @@
  * 极简跳转页
  * @label 极简跳转页
  * @fields url,title,desc
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
  */
 require_once __DIR__ . '/_helpers.php';
 
