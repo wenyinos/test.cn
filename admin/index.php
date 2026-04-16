@@ -7,6 +7,20 @@ admin_auth();
 
 $db = get_db();
 
+// 清空统计数据处理
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'clear_stats') {
+    csrf_verify();
+    role_guard('super');
+    try {
+        $db->exec("TRUNCATE TABLE `access_logs`");
+        write_admin_log('清空了所有访问统计数据');
+        header('Location: index.php');
+        exit;
+    } catch (Throwable $e) {
+        error_log('Clear stats error: ' . $e->getMessage());
+    }
+}
+
 // 时间范围
 $range = $_GET['range'] ?? '7';
 $range = in_array($range, ['0','7','30']) ? $range : '7';
@@ -171,11 +185,20 @@ require __DIR__ . '/_layout_header.php';
 </div>
 
 <!-- 时间范围切换 -->
-<div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
-  <span class="text-muted text-sm">时间范围：</span>
-  <a href="?range=0"  class="btn <?=$range==='0' ?'btn-primary':'btn-ghost'?> btn-sm">今天</a>
-  <a href="?range=7"  class="btn <?=$range==='7' ?'btn-primary':'btn-ghost'?> btn-sm">近7天</a>
-  <a href="?range=30" class="btn <?=$range==='30'?'btn-primary':'btn-ghost'?> btn-sm">近30天</a>
+<div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;justify-content:space-between">
+  <div style="display:flex;gap:8px;align-items:center">
+    <span class="text-muted text-sm">时间范围：</span>
+    <a href="?range=0"  class="btn <?=$range==='0' ?'btn-primary':'btn-ghost'?> btn-sm">今天</a>
+    <a href="?range=7"  class="btn <?=$range==='7' ?'btn-primary':'btn-ghost'?> btn-sm">近7天</a>
+    <a href="?range=30" class="btn <?=$range==='30'?'btn-primary':'btn-ghost'?> btn-sm">近30天</a>
+  </div>
+  <?php if(is_super()): ?>
+  <form method="POST" onsubmit="return confirm('确定要清空所有访问统计数据吗？此操作不可逆！');">
+    <input type="hidden" name="csrf_token" value="<?=csrf_token()?>">
+    <input type="hidden" name="action" value="clear_stats">
+    <button type="submit" class="btn btn-ghost btn-sm" style="color:#f76a6a;border-color:#f76a6a">清空统计数据</button>
+  </form>
+  <?php endif; ?>
 </div>
 
 <!-- 访问趋势 -->

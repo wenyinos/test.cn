@@ -9,7 +9,7 @@ $db = get_db();
 
 $templates = get_templates();
 
-// ── GET 操作：删除 / 切换状态 ───────────────────────────
+// ── GET 操作：删除 / 切换状态 / 清空统计 ───────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
     session_start_safe();
     $token = $_GET['csrf_token'] ?? '';
@@ -40,6 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
                     write_admin_log("切换域名状态 id={$aid} status={$new}");
                 }
                 header('Location: /admin/domains/index.php?msg=toggled'); exit;
+            } elseif ($_GET['action'] === 'clear_stats') {
+                role_guard('super');
+                get_db()->prepare("DELETE FROM `access_logs` WHERE `domain_id`=?")->execute([$aid]);
+                write_admin_log("清空域名访问数据 id={$aid}");
+                header('Location: /admin/domains/index.php?msg=cleared'); exit;
             }
         } catch (Throwable $e) {
             error_log('Domain action error: ' . $e->getMessage());
@@ -191,7 +196,7 @@ $rows = $stmt->fetchAll();
 
 $flash = '';
 if (!empty($_GET['msg'])) {
-    $msgs  = ['added'=>'域名已添加','updated'=>'域名已更新','deleted'=>'域名已删除','toggled'=>'状态已切换'];
+    $msgs  = ['added'=>'域名已添加','updated'=>'域名已更新','deleted'=>'域名已删除','toggled'=>'状态已切换','cleared'=>'域名统计已清空'];
     $flash = $msgs[$_GET['msg']] ?? '';
 }
 
@@ -250,6 +255,11 @@ require dirname(__DIR__) . '/_layout_header.php';
               <a href="/admin/domains/stat.php?id=<?=$row['id']?>" class="btn btn-ghost btn-sm">报表</a>
               <button class="btn btn-ghost btn-sm btn-edit"
                 data-row="<?= htmlspecialchars(json_encode($row),ENT_QUOTES) ?>">编辑</button>
+              <?php if(is_super()): ?>
+              <a href="/admin/domains/index.php?action=clear_stats&id=<?= $row['id'] ?>&csrf_token=<?= $csrf ?>"
+                 class="btn btn-ghost btn-sm" style="color:#f76a6a"
+                 onclick="return confirm('确认清空该域名的访问数据吗？')">清空统计</a>
+              <?php endif; ?>
               <a href="/admin/domains/index.php?action=toggle&id=<?= $row['id'] ?>&csrf_token=<?= $csrf ?>"
                  class="btn btn-sm <?= $row['status']==='active'?'btn-warning':'btn-success' ?>"
                  onclick="return confirm('确认切换状态？')"><?= $row['status']==='active'?'暂停':'启用' ?></a>
