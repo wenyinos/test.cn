@@ -90,7 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
     $max_target_length = $is_nav_template ? 12000 : 2048;
     if (strlen($url) > $max_target_length) $errors[] = $is_nav_template ? '导航配置内容过长' : '目标URL过长';
     if (strlen($img) > 2048) $errors[] = '图片地址过长';
-    if (strlen($title) > 255) $errors[] = '标题过长';
     if (strlen($desc) > 500) $errors[] = '描述过长';
 
     if ($is_nav_template && $url !== '') {
