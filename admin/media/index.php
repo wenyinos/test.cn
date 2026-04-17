@@ -28,39 +28,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
     if (!hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'] ?? '')) {
         echo json_encode(['ok'=>false,'error'=>'CSRF验证失败']); exit;
     }
-    $type = ($_POST['lib'] ?? '') === 'random' ? 'random' : 'gallery';
     $file = $_FILES['file'] ?? null;
-    if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['ok'=>false,'error'=>'文件上传失败，错误码：'.($file['error']??-1)]); exit;
+    if (!$file) {
+        echo json_encode(['ok'=>false,'error'=>'未接收到文件数据']); exit;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $err_msg = [
+            UPLOAD_ERR_INI_SIZE   => '文件大小超过 php.ini upload_max_filesize 限制',
+            UPLOAD_ERR_FORM_SIZE  => '文件大小超过 HTML 表单限制',
+            UPLOAD_ERR_PARTIAL    => '文件上传不完整',
+            UPLOAD_ERR_NO_FILE    => '没有文件被上传',
+            UPLOAD_ERR_NO_TMP_DIR => '找不到临时文件夹',
+            UPLOAD_ERR_CANT_WRITE => '文件写入磁盘失败',
+            UPLOAD_ERR_EXTENSION  => '扩展程序停止了上传'
+        ];
+        echo json_encode(['ok'=>false,'error'=>'文件上传失败，错误码：'.($err_msg[$file['error']]??$file['error'])]); exit;
     }
     if ($file['size'] > $MAX_SIZE) {
-        echo json_encode(['ok'=>false,'error'=>'文件超过5MB限制']); exit;
+        echo json_encode(['ok'=>false,'error'=>'文件大小超过 5MB 限制（当前: '.round($file['size']/1024/1024,2).'MB）']); exit;
     }
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime  = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
     if (!in_array($mime, $ALLOWED_MIME)) {
-        echo json_encode(['ok'=>false,'error'=>'不支持的文件类型，仅支持 JPG/PNG/GIF/WEBP']); exit;
+        echo json_encode(['ok'=>false,'error'=>'不支持的文件类型 ('.$mime.')，仅支持 JPG/PNG/GIF/WEBP']); exit;
     }
     $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     if (!in_array($ext, $ALLOWED_EXT)) $ext = explode('/', $mime)[1];
     $fname    = date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
     $dest_dir = $type === 'random' ? $upload_rand : $upload_norm;
     $dest     = $dest_dir . '/' . $fname;
-    if (!move_uploaded_file($file['tmp_name'], $dest)) {
-        echo json_encode(['ok'=>false,'error'=>'文件保存失败，请检查目录权限']); exit;
+    
+    if (!is_writable($dest_dir)) {
+        echo json_encode(['ok'=>false,'error'=>'上传目录无写入权限：'.$dest_dir]); exit;
     }
-    $rel_url = '/uploads/' . ($type === 'random' ? 'random' : 'gallery') . '/' . $fname;
+
+    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        echo json_encode(['ok'=>false,'error'=>'文件保存失败，系统错误：'.(error_get_last()['message']??'未知错误')]); exit;
+    }
+    
+    $rel_url = '/uploads/' . $type . '/' . $fname;
     try {
-        $db->prepare(
-            "INSERT INTO `media` (`filename`,`url`,`lib`,`owner_id`) VALUES (?,?,?,?)"
-        )->execute([$fname, $rel_url, $type, current_uid()]);
-        $new_id = (int)$db->lastInsertId();
+        $db->prepare("INSERT INTO `media` (`filename`,`url`,`lib`,`owner_id`) VALUES (?,?,?,?)")
+           ->execute([$fname, $rel_url, $type, current_uid()]);
     } catch (Throwable $e) {
-        $new_id = 0;
+        echo json_encode(['ok'=>false,'error'=>'数据库写入失败：'.$e->getMessage()]); exit;
     }
     write_admin_log("上传图片 lib={$type} file={$fname}");
-    echo json_encode(['ok'=>true,'url'=>$rel_url,'id'=>$new_id,'filename'=>$fname]);
+    echo json_encode(['ok'=>true,'url'=>$rel_url,'filename'=>$fname]);
     exit;
 }
 
@@ -125,6 +140,7 @@ require dirname(__DIR__) . '/_layout_header.php';
     <div style="display:flex;gap:10px;align-items:center">
       <a href="?lib=random"  class="btn <?=$lib==='random' ?'btn-primary':'btn-ghost'?> btn-sm">随机图库</a>
       <a href="?lib=gallery" class="btn <?=$lib==='gallery'?'btn-primary':'btn-ghost'?> btn-sm">普通图库</a>
+      <a href="/sync_media.php" class="btn btn-ghost btn-sm" onclick="return confirm('确定要同步 uploads 目录中的新图片到数据库吗？')">同步图片</a>
       <button class="btn btn-primary btn-sm" id="btnUpload">&#43; 上传图片</button>
     </div>
   </div>
@@ -296,8 +312,13 @@ require dirname(__DIR__) . '/_layout_header.php';
     function next(i){
       if (i >= arr.length) {
         bar.style.width='100%';
-        stat.textContent = '上传完成，共 '+arr.length+' 张'+(errs.length?' ('+errs.length+'个失败)':'');
-        setTimeout(function(){ location.reload(); }, 800);
+        if (errs.length > 0) {
+            alert('部分文件上传失败：\n' + errs.join('\n'));
+            stat.textContent = '上传处理完成，部分失败';
+        } else {
+            stat.textContent = '上传成功，正在刷新...';
+            setTimeout(function(){ location.reload(); }, 500);
+        }
         return;
       }
       stat.textContent = '正在上传第 '+(i+1)+'/'+arr.length+' 张...';
@@ -310,12 +331,15 @@ require dirname(__DIR__) . '/_layout_header.php';
       fetch('/admin/media/index.php',{method:'POST',body:fd,credentials:'same-origin'})
         .then(function(r){return r.json();})
         .then(function(d){
-          if(!d.ok) errs.push(arr[i].name+': '+(d.error||'失败'));
+          if(!d.ok) {
+            errs.push(arr[i].name+': '+(d.error||'未知错误'));
+            errDiv.textContent = '上传错误: ' + errs.join(', ');
+            errDiv.style.display = 'block';
+          }
           next(i+1);
         })
         .catch(function(e){ errs.push(arr[i].name+': 网络错误'); next(i+1); });
     }
-    next(0);
   }
 
   window.copyUrl = function(url){

@@ -4,7 +4,12 @@
  * @copyright 2026 wenyinos <ruojiner@hotmail.com>
  * @license MIT License
  */
-require_once dirname(__DIR__) . '/config/config.php';
+$config_file = dirname(__DIR__) . '/config/config.php';
+if (!file_exists($config_file)) {
+    header('Location: /install/install.php');
+    exit;
+}
+require_once $config_file;
 admin_auth();
 
 $db = get_db();

@@ -5,9 +5,17 @@
  * @license MIT License
  */
 
-require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/config/ip_api_config.php';
 
 // ── 检测是否已安装 ────────────────────────────────────────
+$config_file = __DIR__ . '/config/config.php';
+if (!file_exists($config_file)) {
+    header('Location: /install/install.php');
+    exit;
+}
+
+require_once $config_file;
+
 if (!defined('DB_USER') || DB_USER === '') {
     header('Location: /install/install.php');
     exit;
@@ -29,9 +37,14 @@ if (empty($host)) {
     exit('Bad Request');
 }
 
-// ── 排除 /admin/ 路径，防止后台自身被跳转捕获 ────────────
+// ── 排除 /admin/ 等路径，确保物理文件可访问 ────────────
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
-if (strpos($uri, '/admin') === 0 || strpos($uri, '/install') === 0 || strpos($uri, '/assets') === 0) {
+$request_path = parse_url($uri, PHP_URL_PATH);
+if (strpos($request_path, '/admin') === 0 || strpos($request_path, '/install') === 0 || strpos($request_path, '/assets') === 0) {
+    // 如果物理文件存在，由 Web 服务器处理；如果 index.php 运行到这里说明文件可能没被服务器直接命中
+    if (file_exists(ROOT_PATH . $request_path)) {
+        return false; // 在某些环境（如内置服务器）下允许继续寻找物理文件
+    }
     http_response_code(404);
     exit('Not Found');
 }

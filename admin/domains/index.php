@@ -4,7 +4,12 @@
  * @copyright 2026 wenyinos <ruojiner@hotmail.com>
  * @license MIT License
  */
-require_once dirname(dirname(__DIR__)) . '/config/config.php';
+$config_file = dirname(dirname(__DIR__)) . '/config/config.php';
+if (!file_exists($config_file)) {
+    header('Location: /install/install.php');
+    exit;
+}
+require_once $config_file;
 admin_auth();
 
 $db = get_db();
@@ -830,12 +835,10 @@ require dirname(__DIR__) . '/_layout_header.php';
   var pickerModal = document.createElement('div');
   pickerModal.id = 'pickerModal';
   pickerModal.style.cssText='display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.7);overflow-y:auto;padding:20px';
-  pickerModal.innerHTML='<div style="max-width:900px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;pointer-events:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><h3 style="font-size:16px;font-weight:600;margin:0">选择图片</h3><button id="picker-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">&#10005;</button></div><div style="display:flex;gap:10px;margin-bottom:16px"><button id="picker-gallery" class="btn btn-primary btn-sm">普通图库</button><button id="picker-random" class="btn btn-ghost btn-sm">随机图库</button></div><div id="picker-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;max-height:60vh;overflow-y:auto"></div></div>';
+  pickerModal.innerHTML='<div style="max-width:900px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;pointer-events:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><h3 style="font-size:16px;font-weight:600;margin:0">选择图片</h3><button id="picker-close" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">&#10005;</button></div><div id="picker-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;max-height:60vh;overflow-y:auto"></div></div>';
   document.body.appendChild(pickerModal);
 
   var pickerList = document.getElementById('picker-list');
-  var pickerGallery = document.getElementById('picker-gallery');
-  var pickerRandom = document.getElementById('picker-random');
   var pickerClose = document.getElementById('picker-close');
   var currentPickerLib = 'gallery';
 
@@ -845,10 +848,8 @@ require dirname(__DIR__) . '/_layout_header.php';
 
   function loadPickerImages(lib){
     currentPickerLib = lib;
-    pickerGallery.className = lib==='gallery' ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
-    pickerRandom.className = lib==='random' ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
     pickerList.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">加载中...</div>';
-    fetch('/admin/media/index.php?lib='+lib+'&q=&page=1')
+    fetch('/admin/media/index.php?lib='+lib)
       .then(function(r){return r.text();})
       .then(function(html){
         var parser=new DOMParser();
@@ -861,6 +862,7 @@ require dirname(__DIR__) . '/_layout_header.php';
         pickerList.innerHTML='';
         items.forEach(function(item){
           var img=item.querySelector('.media-thumb img');
+          if(!img) return;
           var url=img.src;
           var thumb=document.createElement('div');
           thumb.style.cssText='cursor:pointer;border:1px solid var(--border);border-radius:8px;overflow:hidden;aspect-ratio:1;background:var(--bg);transition:border-color .2s';
@@ -870,6 +872,7 @@ require dirname(__DIR__) . '/_layout_header.php';
           thumb.onclick=function(e){
             e.stopPropagation();
             $('f-img').value=url;
+            showImgPreview(url);
             closePicker();
           };
           pickerList.appendChild(thumb);
