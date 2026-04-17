@@ -17,19 +17,19 @@ $stmt->execute(array_merge([$id],$dp));
 $domain = $stmt->fetch();
 if (!$domain) { http_response_code(404); exit('域名不存在或无权限'); }
 
-// 回填归属地
+// 回填归属地和运营商
 $backfill_count = 0;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'backfill_location') {
     csrf_verify();
     try {
-        $empty_ips = $db->prepare("SELECT DISTINCT `ip` FROM `access_logs` WHERE `domain_id`=? AND (`location` IS NULL OR `location`='') LIMIT 100");
+        $empty_ips = $db->prepare("SELECT DISTINCT `ip` FROM `access_logs` WHERE `domain_id`=? AND (`location` IS NULL OR `location`='' OR `isp` IS NULL OR `isp`='') LIMIT 100");
         $empty_ips->execute([$id]);
         foreach ($empty_ips->fetchAll() as $row) {
             $ip = $row['ip'];
-            $loc = get_ip_location($ip);
-            if ($loc !== '') {
-                $up = $db->prepare("UPDATE `access_logs` SET `location`=? WHERE `domain_id`=? AND `ip`=? AND (`location` IS NULL OR `location`='')");
-                $up->execute([$loc, $id, $ip]);
+            $info = get_ip_info($ip);
+            if ($info['location'] !== '' || $info['isp'] !== '') {
+                $up = $db->prepare("UPDATE `access_logs` SET `location`=COALESCE(NULLIF(?,''),`location`), `isp`=COALESCE(NULLIF(?,''),`isp`) WHERE `domain_id`=? AND `ip`=?");
+                $up->execute([$info['location'], $info['isp'], $id, $ip]);
                 $backfill_count++;
             }
         }
@@ -100,7 +100,7 @@ try {
 // 最近记录
 $recent=[]; $hit_map=[];
 try {
-    $rs=$db->prepare("SELECT l.created_at,l.ip,l.location,l.user_agent FROM `access_logs` l WHERE l.domain_id=? ORDER BY l.id DESC LIMIT 20");
+    $rs=$db->prepare("SELECT l.created_at,l.ip,l.location,l.isp,l.user_agent FROM `access_logs` l WHERE l.domain_id=? ORDER BY l.id DESC LIMIT 20");
     $rs->execute([$id]); $recent=$rs->fetchAll();
     if (!empty($recent)) {
         $ips = array_unique(array_column($recent, 'ip'));
@@ -148,11 +148,11 @@ require dirname(__DIR__) . '/_layout_header.php';
       <form method="POST" style="display:inline">
         <input type="hidden" name="csrf_token" value="<?=csrf_token()?>">
         <input type="hidden" name="action" value="backfill_location">
-        <button type="submit" class="btn btn-ghost btn-sm">刷新归属地</button>
+        <button type="submit" class="btn btn-ghost btn-sm">刷新归属地/运营商</button>
       </form>
     </div>
     <?php if($backfill_count > 0): ?>
-    <div style="padding:4px 16px;font-size:12px;color:#22d3a5">已补全 <?= $backfill_count ?> 个IP的归属地</div>
+    <div style="padding:4px 16px;font-size:12px;color:#22d3a5">已补全 <?= $backfill_count ?> 个IP的信息</div>
     <?php endif; ?>
     <div style="max-width:260px;margin:0 auto"><canvas id="chartLocation"></canvas></div>
   </div>
@@ -166,19 +166,22 @@ require dirname(__DIR__) . '/_layout_header.php';
   <div class="card-header"><span class="card-title">最近访问记录</span></div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>时间</th><th>IP</th><th>IP地区</th><th>访问次数</th><th>User Agent</th></tr></thead>
+      <thead><tr><th>时间</th><th>IP</th><th>IP地区</th><th>运营商</th><th>设备</th><th>浏览器</th><th>系统</th><th>访问次数</th></tr></thead>
       <tbody>
       <?php if(empty($recent)): ?>
-        <tr><td colspan="5" class="text-muted" style="padding:24px;text-align:center">暂无记录</td></tr>
+        <tr><td colspan="8" class="text-muted" style="padding:24px;text-align:center">暂无记录</td></tr>
       <?php else: foreach($recent as $r):
-          $loc = $r['location'] ?? '';
+          $ua_info = parse_user_agent($r['user_agent'] ?? '');
       ?>
         <tr>
           <td class="text-muted text-sm"><?=e($r['created_at'])?></td>
           <td><?=e($r['ip'])?></td>
-          <td class="text-muted text-sm"><?=e($loc)?></td>
+          <td class="text-muted text-sm"><?=e($r['location'] ?? '')?></td>
+          <td class="text-muted text-sm truncate" style="max-width:80px" title="<?=e($r['isp'] ?? '')?>"><?=e($r['isp'] ?? '')?></td>
+          <td class="text-muted text-sm"><?=e($ua_info['device'])?></td>
+          <td class="text-muted text-sm"><?=e($ua_info['browser'])?></td>
+          <td class="text-muted text-sm"><?=e($ua_info['os'])?></td>
           <td><?=number_format($hit_map[$r['ip']] ?? 0)?></td>
-          <td class="text-muted text-sm truncate"><?=e($r['user_agent'])?></td>
         </tr>
       <?php endforeach; endif; ?>
       </tbody>

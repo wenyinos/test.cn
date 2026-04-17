@@ -94,15 +94,16 @@ try {
         $client_ip = '';
     }
     
-    $location = get_ip_location($client_ip);
+    $ip_info = get_ip_info($client_ip);
     
     $log = get_db()->prepare(
-        "INSERT INTO `access_logs` (`domain_id`, `ip`, `location`, `user_agent`) VALUES (?, ?, ?, ?)"
+        "INSERT INTO `access_logs` (`domain_id`, `ip`, `location`, `isp`, `user_agent`) VALUES (?, ?, ?, ?, ?)"
     );
     $log->execute([
         $rule['id'],
         $client_ip,
-        $location,
+        $ip_info['location'],
+        $ip_info['isp'],
         substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
     ]);
 } catch (Throwable $e) {}

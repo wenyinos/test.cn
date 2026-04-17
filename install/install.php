@@ -335,20 +335,76 @@ function write_admin_log(string \$action): void {
     } catch (Throwable \$e) { error_log('write_admin_log error: ' . \$e->getMessage()); }
 }
 
-function get_ip_location(string \$ip): string {
-    static \$cache = []; if (isset(\$cache[\$ip])) return \$cache[\$ip];
-    \$location = ''; if (!defined('IP_LOCATION_ENABLED') || !IP_LOCATION_ENABLED) return '';
-    if (\$ip === '127.0.0.1' || strpos(\$ip, '192.168.') === 0 || strpos(\$ip, '10.') === 0) return '本地';
+function get_ip_info(string \$ip): array {
+    static \$cache = []; static \$table_checked = false; \$key = \$ip;
+    if (isset(\$cache[\$key])) return \$cache[\$key];
+    \$result = ['location' => '', 'isp' => ''];
+    if (!defined('IP_LOCATION_ENABLED') || !IP_LOCATION_ENABLED) { \$cache[\$key] = \$result; return \$result; }
+    if (\$ip === '127.0.0.1' || strpos(\$ip, '192.168.') === 0 || strpos(\$ip, '10.') === 0) { \$result['location'] = '本地'; \$cache[\$key] = \$result; return \$result; }
+    if (!\$table_checked) {
+        try { get_db()->exec("CREATE TABLE IF NOT EXISTS `ip_cache` (`ip` varchar(45) NOT NULL, `location` varchar(100) NOT NULL DEFAULT '', `isp` varchar(50) NOT NULL DEFAULT '', `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (`ip`), KEY `idx_updated_at` (`updated_at`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (Throwable \$e) {}
+        \$table_checked = true;
+    }
+    try {
+        \$stmt = get_db()->prepare("SELECT `location`, `isp` FROM `ip_cache` WHERE `ip` = ? LIMIT 1");
+        \$stmt->execute([\$ip]); \$row = \$stmt->fetch();
+        if (\$row && \$row['location'] !== '') { \$result['location'] = \$row['location']; \$result['isp'] = \$row['isp'] ?? ''; \$cache[\$key] = \$result; return \$result; }
+    } catch (Throwable \$e) {}
+    \$location = ''; \$isp = '';
     try {
         \$api_url = IP_API_URL . '?ip=' . urlencode(\$ip);
         \$ctx = stream_context_create(['http' => ['timeout' => IP_API_TIMEOUT, 'ignore_errors' => true]]);
         \$response = @file_get_contents(\$api_url, false, \$ctx);
-        if (\$response) {
-            \$data = json_decode(\$response, true);
-            if (\$data && (\$data['code'] ?? 0) === 200) \$location = \$data['data']['location']['desc'] ?? '';
-        }
+        if (\$response) { \$data = json_decode(\$response, true); if (\$data && (\$data['code'] ?? 0) === 200) { \$location = \$data['data']['location']['desc'] ?? ''; \$isp = \$data['data']['isp'] ?? ''; } }
     } catch (Throwable \$e) {}
-    \$cache[\$ip] = \$location; return \$location;
+    if (\$location === '' && defined('IP_API_FALLBACK_URL')) {
+        try {
+            \$fallback_url = IP_API_FALLBACK_URL . urlencode(\$ip) . '?lang=zh-CN&fields=status,message,regionName,city,isp';
+            \$ctx2 = stream_context_create(['http' => ['timeout' => IP_API_FALLBACK_TIMEOUT, 'ignore_errors' => true]]);
+            \$response2 = @file_get_contents(\$fallback_url, false, \$ctx2);
+            if (\$response2) {
+                \$data2 = json_decode(\$response2, true);
+                if (\$data2 && (\$data2['status'] ?? '') === 'success') {
+                    \$parts = array_filter([\$data2['regionName'] ?? '', \$data2['city'] ?? ''], function(\$v) { return \$v !== ''; });
+                    \$location = implode(' ', \$parts); \$isp = \$data2['isp'] ?? '';
+                }
+            }
+        } catch (Throwable \$e) {}
+    }
+    if (\$location !== '') {
+        try { get_db()->prepare("INSERT INTO `ip_cache` (`ip`, `location`, `isp`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `location` = VALUES(`location`), `isp` = VALUES(`isp`)")->execute([\$ip, \$location, \$isp]); }
+        catch (Throwable \$e) {}
+    }
+    \$result['location'] = \$location; \$result['isp'] = \$isp; \$cache[\$key] = \$result; return \$result;
+}
+
+function get_ip_location(string \$ip): string {
+    return get_ip_info(\$ip)['location'];
+}
+
+function parse_user_agent(string \$ua): array {
+    \$ua = trim(\$ua); \$result = ['device' => '未知', 'browser' => '未知', 'os' => '未知'];
+    if (\$ua === '') return \$result;
+    if (preg_match('/iPad/i', \$ua)) { \$result['device'] = '平板'; }
+    elseif (preg_match('/Mobile|Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i', \$ua)) { \$result['device'] = '手机'; }
+    elseif (preg_match('/Tablet|PlayBook|Silk/i', \$ua)) { \$result['device'] = '平板'; }
+    else { \$result['device'] = '电脑'; }
+    if (preg_match('/Windows NT (\d+\.?\d*)/i', \$ua, \$m)) {
+        \$ver = \$m[1]; \$map = ['10.0' => '10', '6.3' => '8.1', '6.2' => '8', '6.1' => '7', '6.0' => 'Vista', '5.1' => 'XP'];
+        \$result['os'] = 'Windows ' . (\$map[\$ver] ?? \$ver);
+    } elseif (preg_match('/Mac OS X (\d+[._]\d+)/i', \$ua, \$m)) { \$result['os'] = 'macOS ' . str_replace('_', '.', \$m[1]); }
+    elseif (preg_match('/Android (\d+\.?\d*)/i', \$ua, \$m)) { \$result['os'] = 'Android ' . \$m[1]; }
+    elseif (preg_match('/iPhone OS (\d+)/i', \$ua, \$m)) { \$result['os'] = 'iOS ' . \$m[1]; }
+    elseif (preg_match('/Linux/i', \$ua)) { \$result['os'] = 'Linux'; }
+    elseif (preg_match('/CrOS/i', \$ua)) { \$result['os'] = 'ChromeOS'; }
+    if (preg_match('/Edg[ea]?\/(\d+)/i', \$ua, \$m)) { \$result['browser'] = 'Edge ' . \$m[1]; }
+    elseif (preg_match('/Chrome\/(\d+)/i', \$ua, \$m) && !preg_match('/Chromium|Edg|OPR|Opera|Vivaldi|Brave/i', \$ua)) { \$result['browser'] = 'Chrome ' . \$m[1]; }
+    elseif (preg_match('/Firefox\/(\d+)/i', \$ua, \$m)) { \$result['browser'] = 'Firefox ' . \$m[1]; }
+    elseif (preg_match('/Safari\/(\d+)/i', \$ua, \$m) && !preg_match('/Chrome/i', \$ua)) { \$result['browser'] = 'Safari ' . \$m[1]; }
+    elseif (preg_match('/OPR\/(\d+)/i', \$ua, \$m)) { \$result['browser'] = 'Opera ' . \$m[1]; }
+    elseif (preg_match('/MSIE (\d+)/i', \$ua, \$m)) { \$result['browser'] = 'IE ' . \$m[1]; }
+    elseif (preg_match('/Trident.*rv:(\d+)/i', \$ua, \$m)) { \$result['browser'] = 'IE ' . \$m[1]; }
+    return \$result;
 }
 
 function paginate(int \$total, int \$page, int \$per_page = 20): array {

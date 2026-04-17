@@ -27,6 +27,7 @@ CREATE TABLE `access_logs` (
   `domain_id` int(10) unsigned NOT NULL,
   `ip` varchar(45) COLLATE utf8mb4_unicode_ci NOT NULL,
   `location` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT 'IP归属地',
+  `isp` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT '' COMMENT '运营商',
   `user_agent` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -214,5 +215,22 @@ UNLOCK TABLES;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+--
+-- Table structure for table `ip_cache`
+--
+
+DROP TABLE IF EXISTS `ip_cache`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `ip_cache` (
+  `ip` varchar(45) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `location` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `isp` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`ip`),
+  KEY `idx_updated_at` (`updated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 -- Dump completed on 2026-04-17 10:54:21
