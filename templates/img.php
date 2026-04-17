@@ -57,8 +57,8 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
             transition: transform 0.2s, box-shadow 0.2s;
         }
         .image:hover {
-            transform: scale(1.01);
-            box-shadow: 0 20px 42px rgba(17, 45, 116, .18);
+            transform: none;
+            box-shadow: none;
         }
         h1 {
             margin: 0 0 10px;
