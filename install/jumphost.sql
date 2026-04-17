@@ -1,5 +1,6 @@
--- JumpHost Database Schema
+-- JumpHost Database Schema + Sample Data
 -- MySQL 5.7+
+-- Install: mysql -u root -p < jumphost.sql
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -56,10 +57,6 @@ CREATE TABLE `admins` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 默认管理员 (密码: password)
-INSERT INTO `admins` (`id`, `username`, `password`, `role`, `status`, `owner_id`) VALUES
-(1, 'admin', '$2y$10$MQww//Ujmx8.tvVx3atev.PmC7WYq/QMS5JqgihHmiNhCu5ulnFSK', 'super', 'active', 0);
 
 -- ----------------------------
 -- Table: domains
@@ -129,10 +126,27 @@ CREATE TABLE `settings` (
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 默认设置
+-- ----------------------------
+-- Data: admins
+-- ----------------------------
+INSERT INTO `admins` (`id`, `username`, `password`, `role`, `status`, `owner_id`, `created_at`) VALUES
+(1, 'admin', '$2y$10$MQww//Ujmx8.tvVx3atev.PmC7WYq/QMS5JqgihHmiNhCu5ulnFSK', 'super', 'active', 0, '2026-04-16 00:14:24');
+
+-- ----------------------------
+-- Data: domains
+-- ----------------------------
+INSERT INTO `domains` (`id`, `domain`, `name`, `protocol`, `target_url`, `template`, `status`, `delay`, `img_url`, `site_title`, `site_description`, `is_show_link`, `remarks`, `sort_order`, `owner_id`, `created_at`, `updated_at`) VALUES
+(2, 'a.78rg.cc', '', 'http', 'https://ip138.com', 'click_delay', 'active', 7, 'http://host.78rg.cc/uploads/gallery/20260417133946_0d335495.jpg', '测试', '1111', 1, '', 0, 1, '2026-04-16 00:15:33', '2026-04-17 15:35:15'),
+(3, 'b.78rg.cc', 'new', 'http', 'https://cn.bing.com', 'delay', 'active', 3, 'http://host.78rg.cc/uploads/gallery/a.png', '', '', 1, '111', 0, 1, '2026-04-16 00:19:45', '2026-04-17 15:35:24'),
+(4, '78rg.cc', 'main', 'http', 'https://cn.bing.com', 'img', 'active', 3, 'http://host.78rg.cc/uploads/gallery/20260417094558_eb4aa6e1.jpg', '测试gg', 'ggg', 0, '1', 3, 1, '2026-04-16 00:25:39', '2026-04-17 17:18:10'),
+(20, 'c.78rg.cc', '无图', 'http', 'https://wenyinos.com', 'click_delay', 'active', 9, NULL, '测试无图', '测试', 1, '', 0, 1, '2026-04-17 17:02:02', '2026-04-17 17:27:33');
+
+-- ----------------------------
+-- Data: settings
+-- ----------------------------
 INSERT INTO `settings` (`key`, `value`) VALUES
-('site_name', 'JumpHost'),
-('site_description', ''),
-('icp', '');
+('icp', '*'),
+('site_description', '****'),
+('site_name', 'test');
 
 SET FOREIGN_KEY_CHECKS = 1;
