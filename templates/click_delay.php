@@ -57,14 +57,14 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
             max-width: 100%;
             height: auto;
             margin-bottom: 18px;
-            cursor: pointer;
-            border-radius: 18px;
-            box-shadow: 0 14px 32px rgba(17, 45, 116, .12);
-            transition: transform 0.2s, box-shadow 0.2s;
+cursor: pointer;
+            border-radius: 0;
+            box-shadow: none;
+            transition: none;
         }
         .image:hover {
-            transform: scale(1.01);
-            box-shadow: 0 20px 42px rgba(17, 45, 116, .18);
+            transform: none;
+            box-shadow: none;
         }
         .loading h1 {
             margin: 18px 0 10px;
@@ -110,20 +110,16 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
             <img src="<?= e($image_src) ?>" class="image" alt="<?= e($title) ?>">
         </a>
         <?php endif; ?>
-        <div class="spinner"></div>
         <?php if ($title !== ''): ?>
         <h1><?= e($title) ?></h1>
         <?php endif; ?>
         <?php if ($desc !== ''): ?>
         <div class="loading-text"><?= e($desc) ?></div>
         <?php endif; ?>
-        <div class="loading-text">
-            <span id="countdown"><?= $delay ?></span> 秒后自动跳转
-        </div>
         <?php if ($is_show_link): ?>
         <div style="font-size:14px;color:#666;margin-bottom:15px;word-break:break-all;">即将跳转至：<a href="<?= e($target_href) ?>" style="color:#4b74ff;text-decoration:none;"><?= e($target_href) ?></a></div>
         <?php endif; ?>
-        <a class="jump-link" href="<?= e($target_href) ?>">立即前往</a>
+        
     </div>
     <script>
         (function() {

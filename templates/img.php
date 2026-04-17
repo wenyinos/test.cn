@@ -52,8 +52,8 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
             height: auto;
             margin-bottom: 18px;
             cursor: pointer;
-            border-radius: 18px;
-            box-shadow: 0 14px 32px rgba(17, 45, 116, .12);
+            border-radius: 0;
+            box-shadow: none;
             transition: transform 0.2s, box-shadow 0.2s;
         }
         .image:hover {
@@ -94,7 +94,7 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
         <?php if ($is_show_link): ?>
         <div style="font-size:14px;color:#666;margin-bottom:15px;word-break:break-all;">即将跳转至：<a href="<?= e($target_href) ?>" style="color:#4b74ff;text-decoration:none;"><?= e($target_href) ?></a></div>
         <?php endif; ?>
-        <a href="<?= e($target_href) ?>" class="action">立即前往</a>
+        
     </div>
     <script>
         (function() {
@@ -113,18 +113,7 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
                 redirect();
             };
             
-            // 如果页面被隐藏超过3秒，自动跳转
-            var hiddenTime;
-            document.addEventListener('visibilitychange', function() {
-                if (document.hidden) {
-                    hiddenTime = Date.now();
-                } else if (hiddenTime && Date.now() - hiddenTime > 3000) {
-                    redirect();
-                }
-            });
             
-            // 30秒后自动跳转
-            setTimeout(redirect, 30000);
         })();
     </script>
 </body>
