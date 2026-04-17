@@ -17,8 +17,8 @@ if ($target_href === '') {
 }
 
 $image_src = template_href($img_url ?? '', '/img.php');
-$title = template_value($site_title ?? '', '点击图片继续访问');
-$desc = template_value($site_description ?? '', '轻触图片即可跳转到目标页面');
+$title = is_string($site_title ?? null) ? trim($site_title) : '';
+$desc = is_string($site_description ?? null) ? trim($site_description) : '';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -85,8 +85,12 @@ $desc = template_value($site_description ?? '', '轻触图片即可跳转到目�
 <body>
     <div class="container">
         <img src="<?= e($image_src) ?>" class="image" onclick="redirect()" alt="<?= e($title) ?>" onerror="handleImageError(this)">
+        <?php if ($title !== ''): ?>
         <h1><?= e($title) ?></h1>
+        <?php endif; ?>
+        <?php if ($desc !== ''): ?>
         <div class="loading-text"><?= e($desc) ?></div>
+        <?php endif; ?>
         <a href="<?= e($target_href) ?>" class="action">立即前往</a>
     </div>
     <script>

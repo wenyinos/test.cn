@@ -23,8 +23,8 @@ if (!isset($delay) || !is_numeric($delay) || $delay < 1 || $delay > 60) {
 
 $delay = (int)$delay;
 $image_src = template_href($img_url ?? '', '');
-$title = template_value($site_title ?? '', '页面跳转中');
-$desc = template_value($site_description ?? '', '请稍候，系统正在为您打开目标页面。');
+$title = is_string($site_title ?? null) ? trim($site_title) : '';
+$desc = is_string($site_description ?? null) ? trim($site_description) : '';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -111,8 +111,12 @@ $desc = template_value($site_description ?? '', '请稍候，系统正在为您�
         </a>
         <?php endif; ?>
         <div class="spinner"></div>
+        <?php if ($title !== ''): ?>
         <h1><?= e($title) ?></h1>
+        <?php endif; ?>
+        <?php if ($desc !== ''): ?>
         <div class="loading-text"><?= e($desc) ?></div>
+        <?php endif; ?>
         <div class="loading-text">
             <span id="countdown"><?= $delay ?></span> 秒后自动跳转
         </div>
