@@ -78,6 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
     $title   = trim($_POST['site_title'] ?? '');
     $desc    = trim($_POST['site_description'] ?? '');
     $is_show_link = (int)($_POST['is_show_link'] ?? 1);
+    $remarks = trim($_POST['remarks'] ?? '');
+    $sort_order = (int)($_POST['sort_order'] ?? 0);
 
     // 处理文件上传
     if (isset($_FILES['img_file']) && $_FILES['img_file']['error'] === UPLOAD_ERR_OK) {
@@ -158,8 +160,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
             }
             $db->prepare(
                 "UPDATE `domains` SET `name`=?,`domain`=?,`protocol`=?,`target_url`=?,`template`=?,`status`=?,
-                 `delay`=?,`img_url`=?,`site_title`=?,`site_description`=?,`is_show_link`=? WHERE `id`=?"
-            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$is_show_link,$id]);
+                 `delay`=?,`img_url`=?,`site_title`=?,`site_description`=?,`is_show_link`=?,`remarks`=?,`sort_order`=? WHERE `id`=?"
+            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$is_show_link,$remarks?:null,$sort_order,$id]);
             write_admin_log("编辑域名 id={$id} domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'updated']);
         } else {
@@ -171,8 +173,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
                 exit;
             }
             $db->prepare(
-                "INSERT INTO `domains` (`name`,`domain`,`protocol`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`is_show_link`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
-            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$is_show_link,current_uid()]);
+                "INSERT INTO `domains` (`name`,`domain`,`protocol`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`is_show_link`,`remarks`,`sort_order`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$is_show_link,$remarks?:null,$sort_order,current_uid()]);
             write_admin_log("新增域名 domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'added']);
         }
@@ -190,7 +192,8 @@ $status_filter = $_GET['status'] ?? '';
 $where  = "WHERE {$ow}";
 $params = $op;
 if ($search) {
-    $where   .= ' AND (`domain` LIKE ? OR `target_url` LIKE ?)';
+    $where   .= ' AND (`domain` LIKE ? OR `target_url` LIKE ? OR `remarks` LIKE ?)';
+    $params[] = '%'.$search.'%';
     $params[] = '%'.$search.'%';
     $params[] = '%'.$search.'%';
 }
@@ -214,7 +217,7 @@ $stmt  = $db->prepare("
     LEFT JOIN `access_logs` l ON l.domain_id=d.id
     $where
     GROUP BY d.id
-    ORDER BY d.id DESC
+    ORDER BY d.sort_order ASC, d.id DESC
     LIMIT {$pager['per_page']} OFFSET {$pager['offset']}
 ");
 $stmt->execute($params);
@@ -257,13 +260,14 @@ require dirname(__DIR__) . '/_layout_header.php';
 
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>名称</th><th>域名</th><th>协议</th><th>模板</th><th>添加人</th><th>今日PV</th><th>今日IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+      <thead><tr><th>#</th><th>排序</th><th>名称</th><th>域名</th><th>协议</th><th>备注</th><th>模板</th><th>添加人</th><th>今日PV</th><th>今日IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
       <tbody>
       <?php if (empty($rows)): ?>
-        <tr><td colspan="11" style="padding:28px;text-align:center" class="text-muted">暂无数据</td></tr>
+        <tr><td colspan="13" style="padding:28px;text-align:center" class="text-muted">暂无数据</td></tr>
       <?php else: foreach ($rows as $row): ?>
         <tr>
           <td class="text-muted"><?= $row['id'] ?></td>
+          <td><span class="badge" style="background:#f0f0f0;color:#666"><?= (int)$row['sort_order'] ?></span></td>
           <td><?= e($row['name'] ?? '—') ?></td>
           <td>
             <div style="display:flex;align-items:center;gap:8px">
@@ -272,6 +276,7 @@ require dirname(__DIR__) . '/_layout_header.php';
             </div>
           </td>
           <td><span class="badge" style="<?= $row['protocol']==='https' ? 'background:#1a7f37;color:#fff' : 'background:#6b7280;color:#fff' ?>"><?= e($row['protocol']) ?></span></td>
+          <td class="text-muted text-sm" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<?= e($row['remarks']??'') ?>"><?= e($row['remarks']??'—') ?></td>
           <td><span class="badge badge-warning"><?= e($templates[$row['template']]['label'] ?? $row['template']) ?></span></td>
           <td class="text-muted text-sm"><?= e($row['owner_name']??'—') ?></td>
           <td><a href="/admin/domains/stat.php?id=<?=$row['id']?>" class="badge badge-active" style="text-decoration:none"><?=(int)$row['today_pv']?></a></td>
@@ -423,6 +428,15 @@ require dirname(__DIR__) . '/_layout_header.php';
         <option value="0">否</option>
       </select>
       <p class="form-hint">如果选“是”，跳转页面将显示即将跳转到的目标地址</p>
+    </div>
+    <div class="form-group">
+      <label class="form-label">排序号</label>
+      <input type="number" id="f-sort" class="form-control" style="max-width:150px" value="0">
+      <p class="form-hint">数字越小越靠前</p>
+    </div>
+    <div class="form-group">
+      <label class="form-label">备注</label>
+      <textarea id="f-remarks" class="form-control" rows="2" placeholder="仅管理员可见"></textarea>
     </div>
     <div class="form-group">
       <label class="form-label">状态</label>
@@ -659,6 +673,8 @@ require dirname(__DIR__) . '/_layout_header.php';
     fillBlackgoldMeta(defaultBlackgoldMeta());
     showImgPreview(''); 
     $('f-showlink').value='1';
+    $('f-sort').value='0';
+    $('f-remarks').value='';
     $('f-status').value='active'; 
     $('f-tpl').value='302';
     navRows.innerHTML='';
@@ -678,6 +694,8 @@ require dirname(__DIR__) . '/_layout_header.php';
       $('f-stitle').value=row.site_title||'';
       $('f-sdesc').value=row.site_description||'';
       $('f-showlink').value=row.is_show_link ?? '1';
+      $('f-sort').value=row.sort_order ?? '0';
+      $('f-remarks').value=row.remarks||'';
       $('f-status').value=row.status||'active';
       updateFields();
       if(templateHasField(row.template, 'nav')){
@@ -788,6 +806,8 @@ require dirname(__DIR__) . '/_layout_header.php';
     fd.append('site_title',$('f-stitle').value);
     fd.append('site_description',$('f-sdesc').value);
     fd.append('is_show_link',$('f-showlink').value);
+    fd.append('sort_order',$('f-sort').value);
+    fd.append('remarks',$('f-remarks').value);
     fd.append('status',$('f-status').value);
 
     fetch('/admin/domains/index.php',{method:'POST',body:fd,credentials:'same-origin'})

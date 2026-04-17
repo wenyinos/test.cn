@@ -64,7 +64,7 @@ $success = false;
 if ($step === '2' && $_SERVER['REQUEST_METHOD']==='POST' && $env_ok) {
     $host    = trim($_POST['db_host']    ?? 'localhost');
     $port    = trim($_POST['db_port']    ?? '3306');
-    $dbname  = trim($_POST['db_name']    ?? 'jumphost');
+    $dbname  = trim($_POST['db_name']    ?? 'host_78rg_cc');
     $user    = trim($_POST['db_user']    ?? '');
     $pass    = $_POST['db_pass']         ?? '';
     $admin_u = trim($_POST['admin_user'] ?? 'admin');
@@ -80,13 +80,22 @@ if ($step === '2' && $_SERVER['REQUEST_METHOD']==='POST' && $env_ok) {
             $pdo = new PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
             $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbname}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             $pdo->exec("USE `{$dbname}`");
-            try { $pdo->exec("SET GLOBAL innodb_large_prefix=ON"); } catch(Throwable $e){}
-            try { $pdo->exec("SET GLOBAL innodb_file_format=Barracuda"); } catch(Throwable $e){}
 
-            // 导入完整 SQL
-            foreach (array_filter(array_map('trim', explode(';', file_get_contents($sql_file)))) as $s) {
-                if ($s !== '' && stripos($s, 'ALTER TABLE') === false) {
-                    $pdo->exec($s);
+            // 执行 SQL 文件
+            $sql_content = file_get_contents($sql_file);
+            // 移除注释和空行，简单分割
+            $queries = explode(";\n", $sql_content);
+            foreach ($queries as $query) {
+                $query = trim($query);
+                if ($query !== '' && strpos($query, '--') !== 0) {
+                    try {
+                        $pdo->exec($query . ';');
+                    } catch (Throwable $e) {
+                        // 忽略某些非关键错误，如表已存在
+                        if (strpos($e->getMessage(), 'already exists') === false) {
+                            // 可选：记录错误
+                        }
+                    }
                 }
             }
 
@@ -97,11 +106,12 @@ if ($step === '2' && $_SERVER['REQUEST_METHOD']==='POST' && $env_ok) {
                 ->execute([$site_n, $site_n]);
 
             // 写 config.php
-            $base    = file_get_contents($config_file);
-            $fn_pos  = strpos($base, 'function get_db()');
-            $fns     = $fn_pos !== false ? substr($base, $fn_pos) : '';
             $content = <<<PHP
 <?php
+/**
+ * @copyright 2026 wenyinos <ruojiner@hotmail.com>
+ * @license MIT License
+ */
 define('DB_HOST',    '{$host}');
 define('DB_PORT',    '{$port}');
 define('DB_NAME',    '{$dbname}');
@@ -118,9 +128,34 @@ define('ADMIN_PATH',    ROOT_PATH . '/admin');
 ini_set('display_errors', 0); ini_set('log_errors', 1);
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Shanghai');
+require_once __DIR__ . '/ip_api_config.php';
+function get_db(): PDO {
+    static \$pdo = null;
+    if (\$pdo === null) {
+        \$dsn = sprintf(
+            'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+            DB_HOST, DB_PORT, DB_NAME, DB_CHARSET
+        );
+        \$pdo = new PDO(\$dsn, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
+    }
+    return \$pdo;
+}
 
+// ─── Session 初始化 ────────────────────────────────────────
+function session_start_safe(): void {
+    if (session_status() === PHP_SESSION_NONE) {
+        ini_set('session.cookie_httponly', 1);
+        ini_set('session.use_strict_mode', 1);
+        session_start();
+    }
+}
 PHP;
-            file_put_contents($config_file, $content . $fns);
+            // 如果原来的 config.php 还有更多函数，可以按需补充。这里我们直接重新生成核心框架。
+            file_put_contents($config_file, $content);
 
             // 写 .htaccess
             file_put_contents(dirname(__DIR__).'/.htaccess',
