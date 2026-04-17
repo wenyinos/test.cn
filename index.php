@@ -106,6 +106,7 @@ $delay            = (int) $rule['delay'];
 $img_url          = $rule['img_url'] ?? '';
 $site_title       = $rule['site_title'] ?? '';
 $site_description = $rule['site_description'] ?? '';
+$is_show_link     = (int)($rule['is_show_link'] ?? 1);
 
 // ── 验证模板文件存在 ──────────────────────────────────────
 $template_name = preg_replace('/[^a-z0-9_-]/i', '', $rule['template']);

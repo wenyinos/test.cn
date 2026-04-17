@@ -118,6 +118,9 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
         <div class="loading-text">
             <span id="countdown"><?= $delay ?></span> 秒后自动跳转
         </div>
+        <?php if ($is_show_link): ?>
+        <div style="font-size:14px;color:#666;margin-bottom:15px;word-break:break-all;">即将跳转至：<a href="<?= e($target_href) ?>" style="color:#4b74ff;text-decoration:none;"><?= e($target_href) ?></a></div>
+        <?php endif; ?>
         <a class="jump-link" href="<?= e($target_href) ?>">立即前往</a>
     </div>
     <script>

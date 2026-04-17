@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
     $img     = trim($_POST['img_url'] ?? '');
     $title   = trim($_POST['site_title'] ?? '');
     $desc    = trim($_POST['site_description'] ?? '');
+    $is_show_link = (int)($_POST['is_show_link'] ?? 1);
 
     // 处理文件上传
     if (isset($_FILES['img_file']) && $_FILES['img_file']['error'] === UPLOAD_ERR_OK) {
@@ -157,8 +158,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
             }
             $db->prepare(
                 "UPDATE `domains` SET `name`=?,`domain`=?,`protocol`=?,`target_url`=?,`template`=?,`status`=?,
-                 `delay`=?,`img_url`=?,`site_title`=?,`site_description`=? WHERE `id`=?"
-            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$id]);
+                 `delay`=?,`img_url`=?,`site_title`=?,`site_description`=?,`is_show_link`=? WHERE `id`=?"
+            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$is_show_link,$id]);
             write_admin_log("编辑域名 id={$id} domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'updated']);
         } else {
@@ -170,8 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
                 exit;
             }
             $db->prepare(
-                "INSERT INTO `domains` (`name`,`domain`,`protocol`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
-            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,current_uid()]);
+                "INSERT INTO `domains` (`name`,`domain`,`protocol`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`is_show_link`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$is_show_link,current_uid()]);
             write_admin_log("新增域名 domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'added']);
         }
@@ -416,6 +417,14 @@ require dirname(__DIR__) . '/_layout_header.php';
       </div>
     </div>
     <div class="form-group">
+      <label class="form-label">显示跳转链接</label>
+      <select id="f-showlink" class="form-control" style="max-width:150px">
+        <option value="1">是</option>
+        <option value="0">否</option>
+      </select>
+      <p class="form-hint">如果选“是”，跳转页面将显示即将跳转到的目标地址</p>
+    </div>
+    <div class="form-group">
       <label class="form-label">状态</label>
       <select id="f-status" class="form-control" style="max-width:150px">
         <option value="active">活跃</option>
@@ -649,6 +658,7 @@ require dirname(__DIR__) . '/_layout_header.php';
     $('f-sdesc').value='';
     fillBlackgoldMeta(defaultBlackgoldMeta());
     showImgPreview(''); 
+    $('f-showlink').value='1';
     $('f-status').value='active'; 
     $('f-tpl').value='302';
     navRows.innerHTML='';
@@ -667,6 +677,7 @@ require dirname(__DIR__) . '/_layout_header.php';
       showImgPreview(row.img_url);
       $('f-stitle').value=row.site_title||'';
       $('f-sdesc').value=row.site_description||'';
+      $('f-showlink').value=row.is_show_link ?? '1';
       $('f-status').value=row.status||'active';
       updateFields();
       if(templateHasField(row.template, 'nav')){
@@ -776,6 +787,7 @@ require dirname(__DIR__) . '/_layout_header.php';
     }
     fd.append('site_title',$('f-stitle').value);
     fd.append('site_description',$('f-sdesc').value);
+    fd.append('is_show_link',$('f-showlink').value);
     fd.append('status',$('f-status').value);
 
     fetch('/admin/domains/index.php',{method:'POST',body:fd,credentials:'same-origin'})

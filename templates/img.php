@@ -91,6 +91,9 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
         <?php if ($desc !== ''): ?>
         <div class="loading-text"><?= e($desc) ?></div>
         <?php endif; ?>
+        <?php if ($is_show_link): ?>
+        <div style="font-size:14px;color:#666;margin-bottom:15px;word-break:break-all;">即将跳转至：<a href="<?= e($target_href) ?>" style="color:#4b74ff;text-decoration:none;"><?= e($target_href) ?></a></div>
+        <?php endif; ?>
         <a href="<?= e($target_href) ?>" class="action">立即前往</a>
     </div>
     <script>
