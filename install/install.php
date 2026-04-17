@@ -112,7 +112,7 @@ if ($step === '2' && $_SERVER['REQUEST_METHOD']==='POST' && $env_ok) {
             }
 
             // 更新管理员
-            $pdo->prepare("UPDATE `admins` SET `username`=?,`password`=? WHERE `id`=1")
+            $pdo->prepare("INSERT INTO `admins` (`id`, `username`, `password`, `role`, `status`) VALUES (1, ?, ?, 'super', 'active') ON DUPLICATE KEY UPDATE `username`=VALUES(`username`), `password`=VALUES(`password`), `role`=VALUES(`role`), `status`=VALUES(`status`)")
                 ->execute([$admin_u, password_hash($admin_p, PASSWORD_BCRYPT)]);
             $pdo->prepare("INSERT INTO `settings`(`key`,`value`) VALUES('site_name',?) ON DUPLICATE KEY UPDATE `value`=?")
                 ->execute([$site_n, $site_n]);
