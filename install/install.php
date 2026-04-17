@@ -91,16 +91,20 @@ if ($step === '2' && $_SERVER['REQUEST_METHOD']==='POST' && $env_ok) {
 
             // 执行 SQL 文件
             $sql_content = file_get_contents($sql_file);
-            // 移除注释和空行，简单分割
-            $queries = explode(";\n", $sql_content);
+            // 移除注释，替换多余空白
+            $sql_content = preg_replace('/--[^\n]*/', '', $sql_content);
+            $sql_content = preg_replace('/\s+/', ' ', $sql_content);
+            // 按分号分割语句
+            $queries = explode(';', $sql_content);
             foreach ($queries as $query) {
                 $query = trim($query);
-                if ($query !== '' && strpos($query, '--') !== 0) {
+                if ($query !== '') {
                     try {
                         $pdo->exec($query . ';');
                     } catch (Throwable $e) {
-                        // 忽略某些非关键错误，如表已存在
-                        if (strpos($e->getMessage(), 'already exists') === false) {
+                        $msg = $e->getMessage();
+                        // 忽略非关键错误
+                        if (strpos($msg, 'already exists') === false && strpos($msg, 'Duplicate') === false) {
                             // 可选：记录错误
                         }
                     }
