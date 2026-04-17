@@ -295,7 +295,11 @@ function decode_nav_payload(string \$raw): array {
     if (json_last_error() !== JSON_ERROR_NONE || !is_array(\$decoded)) return ['links' => [], 'meta' => []];
     \$meta = [];
     if (isset(\$decoded['links']) && is_array(\$decoded['links'])) {
-        \$meta = \$_decoded['meta'] ?? []; \$decoded = \$decoded['links'];
+        \$meta = isset(\$decoded['meta']) && is_array(\$decoded['meta']) ? \$decoded['meta'] : [];
+        \$decoded = \$decoded['links'];
+    } elseif (isset(\$decoded['items']) && is_array(\$decoded['items'])) {
+        \$meta = isset(\$decoded['meta']) && is_array(\$decoded['meta']) ? \$decoded['meta'] : [];
+        \$decoded = \$decoded['items'];
     }
     if (isset(\$decoded['url']) || isset(\$decoded['name']) || isset(\$decoded['icon'])) \$decoded = [\$decoded];
     return ['links' => is_array(\$decoded) ? \$decoded : [], 'meta' => \$meta];
