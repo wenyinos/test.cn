@@ -30,7 +30,7 @@ PHP domain redirection and management system. No framework, no build tools, no t
 
 ## Template system
 
-Templates are plain PHP files in `templates/`. They are auto-discovered by scanning `/*.php` (excluding `_helpers.php` and layout files). To add fields or a display label, add annotations in the file header:
+Templates are plain PHP files in `templates/`. **Only whitelisted templates are usable** — `get_templates()` in `config.php` filters to `['img', 'delay', 'click_delay']`. Adding a new template requires updating this whitelist. To add fields or a display label, add annotations in the file header:
 
 ```php
 /**
