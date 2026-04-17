@@ -67,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
     }
 
     $id      = (int)($_POST['id'] ?? 0);
+    $name    = trim($_POST['name'] ?? '');
     $domain  = strtolower(trim($_POST['domain'] ?? ''));
     $proto   = ($_POST['protocol'] ?? '') === 'http' ? 'http' : 'https';
     $tpl     = $_POST['template'] ?? '302';
@@ -76,6 +77,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
     $img     = trim($_POST['img_url'] ?? '');
     $title   = trim($_POST['site_title'] ?? '');
     $desc    = trim($_POST['site_description'] ?? '');
+
+    // 处理文件上传
+    if (isset($_FILES['img_file']) && $_FILES['img_file']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['img_file'];
+        $allowed_ext = ['jpg','jpeg','png','gif','webp'];
+        $max_size = 5 * 1024 * 1024;
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        if (in_array($ext, $allowed_ext) && $file['size'] <= $max_size) {
+            $upload_dir = ROOT_PATH . '/uploads/gallery';
+            if (!is_dir($upload_dir)) @mkdir($upload_dir, 0755, true);
+            $new_name = date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            if (move_uploaded_file($file['tmp_name'], $upload_dir . '/' . $new_name)) {
+                $img = '/uploads/gallery/' . $new_name;
+                // 记录到媒体库
+                try {
+                    $db->prepare("INSERT INTO `media` (`filename`,`url`,`lib`,`owner_id`) VALUES (?,?,'gallery',?)")
+                       ->execute([$new_name, $img, current_uid()]);
+                } catch (Throwable $e) {}
+            }
+        }
+    }
 
     $template_fields = $templates[$tpl]['fields'] ?? [];
     $is_nav_template = in_array('nav', $template_fields, true);
@@ -133,9 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
                 exit;
             }
             $db->prepare(
-                "UPDATE `domains` SET `domain`=?,`protocol`=?,`target_url`=?,`template`=?,`status`=?,
+                "UPDATE `domains` SET `name`=?,`domain`=?,`protocol`=?,`target_url`=?,`template`=?,`status`=?,
                  `delay`=?,`img_url`=?,`site_title`=?,`site_description`=? WHERE `id`=?"
-            )->execute([$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$id]);
+            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,$id]);
             write_admin_log("编辑域名 id={$id} domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'updated']);
         } else {
@@ -147,8 +170,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_ajax'])) {
                 exit;
             }
             $db->prepare(
-                "INSERT INTO `domains` (`domain`,`protocol`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?,?)"
-            )->execute([$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,current_uid()]);
+                "INSERT INTO `domains` (`name`,`domain`,`protocol`,`target_url`,`template`,`status`,`delay`,`img_url`,`site_title`,`site_description`,`owner_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+            )->execute([$name,$domain,$proto,$url,$tpl,$status,$delay,$img?:null,$title?:null,$desc?:null,current_uid()]);
             write_admin_log("新增域名 domain={$domain} protocol={$proto}");
             echo json_encode(['ok' => true, 'msg' => 'added']);
         }
@@ -233,13 +256,14 @@ require dirname(__DIR__) . '/_layout_header.php';
 
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>域名</th><th>协议</th><th>模板</th><th>添加人</th><th>今日PV</th><th>今日IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+      <thead><tr><th>#</th><th>名称</th><th>域名</th><th>协议</th><th>模板</th><th>添加人</th><th>今日PV</th><th>今日IP</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
       <tbody>
       <?php if (empty($rows)): ?>
-        <tr><td colspan="10" style="padding:28px;text-align:center" class="text-muted">暂无数据</td></tr>
+        <tr><td colspan="11" style="padding:28px;text-align:center" class="text-muted">暂无数据</td></tr>
       <?php else: foreach ($rows as $row): ?>
         <tr>
           <td class="text-muted"><?= $row['id'] ?></td>
+          <td><?= e($row['name'] ?? '—') ?></td>
           <td>
             <div style="display:flex;align-items:center;gap:8px">
               <a href="<?= e($row['protocol']) ?>://<?= e($row['domain']) ?>" target="_blank"><?= e($row['domain']) ?></a>
@@ -296,6 +320,10 @@ require dirname(__DIR__) . '/_layout_header.php';
     </div>
     <div id="dm-err" style="display:none;padding:10px 14px;background:#fee;border:1px solid #fcc;border-radius:6px;color:#c00;margin-bottom:14px;font-size:14px"></div>
     <div class="form-group">
+      <label class="form-label">项目名称</label>
+      <input type="text" id="f-name" class="form-control" placeholder="仅用于管理标识，如：主站、备份1">
+    </div>
+    <div class="form-group">
       <label class="form-label">绑定域名 <span style="color:red">*</span></label>
       <div style="display:flex;gap:8px">
         <select id="f-protocol" class="form-control" style="max-width:120px">
@@ -328,20 +356,28 @@ require dirname(__DIR__) . '/_layout_header.php';
       <input type="number" id="f-delay" class="form-control" style="max-width:100px" value="3" min="1" max="60">
     </div>
     <div id="g-img" class="form-group" style="display:none">
-      <label class="form-label">图片 URL</label>
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <input type="text" id="f-img" class="form-control" placeholder="https://example.com/banner.jpg" style="flex:1">
-        <button type="button" id="btn-img-picker" class="btn btn-ghost btn-sm" style="padding:10px 14px">📷 选择</button>
+      <label class="form-label">展示图片</label>
+      <div id="img-preview-container" style="margin-bottom:10px;display:none">
+        <img id="img-preview" src="" style="max-width:100%;max-height:150px;border-radius:8px;border:1px solid var(--border)">
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="f-img" class="form-control" placeholder="图片 URL" style="flex:1">
+        <button type="button" id="btn-img-picker" class="btn btn-ghost btn-sm" style="padding:10px 14px">📷 图库</button>
+      </div>
+      <div style="position:relative;overflow:hidden;display:inline-block;width:100%">
+        <button type="button" class="btn btn-ghost btn-sm" style="width:100%;border-style:dashed;padding:12px">选择本地图片上传...</button>
+        <input type="file" id="f-img-file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+      </div>
+      <p class="form-hint">支持 URL、图库选择或直接上传图片</p>
     </div>
     <div id="g-navtitle" style="display:none">
       <div class="form-group">
         <label class="form-label">页面标题</label>
-        <input type="text" id="f-stitle" class="form-control" placeholder="导航中心">
+        <input type="text" id="f-stitle" class="form-control" placeholder="展示在页面顶部的标题">
       </div>
       <div class="form-group">
-        <label class="form-label">页面副标题</label>
-        <input type="text" id="f-sdesc" class="form-control" placeholder="欢迎访问">
+        <label class="form-label">页面次标题</label>
+        <input type="text" id="f-sdesc" class="form-control" placeholder="展示在页面顶部的描述文字">
       </div>
     </div>
     <div id="g-blackgold" style="display:none">
@@ -544,6 +580,31 @@ require dirname(__DIR__) . '/_layout_header.php';
   
   var currentIconInput = null;
 
+  function showImgPreview(url){
+    var container = $('img-preview-container');
+    var img = $('img-preview');
+    if(url){
+      img.src = url;
+      container.style.display = 'block';
+    } else {
+      container.style.display = 'none';
+    }
+  }
+
+  $('f-img').addEventListener('input', function(){
+    showImgPreview(this.value);
+  });
+
+  $('f-img-file').addEventListener('change', function(){
+    if(this.files && this.files[0]){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        showImgPreview(e.target.result);
+      };
+      reader.readAsDataURL(this.files[0]);
+    }
+  });
+
   function updateFields(){
     var v=$('f-tpl').value;
     var tplConfig = TEMPLATES[v] || {fields: []};
@@ -557,29 +618,37 @@ require dirname(__DIR__) . '/_layout_header.php';
     $('g-navtitle').style.display = 'none';
     $('g-blackgold').style.display = 'none';
     
+    // 默认显示标题和描述，除非是纯 301/302 模板（可选）
+    // 这里我们强制只要有 site_title 字段需求就显示
+    $('g-navtitle').style.display = ''; 
+    $('g-img').style.display = '';
+
     // 根据模板配置显示对应字段
     fields.forEach(function(field){
       if(field === 'url') $('g-url').style.display = '';
       if(field === 'nav') $('g-nav').style.display = '';
       if(field === 'delay') $('g-delay').style.display = '';
-      if(field === 'img') $('g-img').style.display = '';
-      if(field === 'title' || field === 'desc') $('g-navtitle').style.display = '';
-      if(field === 'blackgold') $('g-blackgold').style.display = '';
+      // 如果模板明确需要 img，则保持显示（上面已经默认开启预览）
     });
+    
+    if(v === 'blackgold') $('g-blackgold').style.display = '';
   }
 
   function openModal(row){
     hideErr();
     editId=0;
     // 清空所有字段
+    $('f-name').value=''; 
     $('f-domain').value=''; 
     $('f-protocol').value='https';
     $('f-url').value=''; 
     $('f-delay').value='3';
     $('f-img').value=''; 
+    $('f-img-file').value=''; 
     $('f-stitle').value=''; 
     $('f-sdesc').value='';
     fillBlackgoldMeta(defaultBlackgoldMeta());
+    showImgPreview(''); 
     $('f-status').value='active'; 
     $('f-tpl').value='302';
     navRows.innerHTML='';
@@ -589,11 +658,13 @@ require dirname(__DIR__) . '/_layout_header.php';
     if(row){
       dmTitle.textContent='编辑域名';
       editId=row.id;
+      $('f-name').value=row.name||'';
       $('f-domain').value=row.domain||'';
       $('f-protocol').value=row.protocol||'https';
       $('f-tpl').value=row.template||'302';
       $('f-delay').value=row.delay||3;
       $('f-img').value=row.img_url||'';
+      showImgPreview(row.img_url);
       $('f-stitle').value=row.site_title||'';
       $('f-sdesc').value=row.site_description||'';
       $('f-status').value=row.status||'active';
@@ -693,12 +764,16 @@ require dirname(__DIR__) . '/_layout_header.php';
     fd.append('_ajax','1');
     fd.append('csrf_token',CSRF);
     fd.append('id',editId);
+    fd.append('name',$('f-name').value);
     fd.append('domain',$('f-domain').value);
     fd.append('protocol',$('f-protocol').value);
     fd.append('template',$('f-tpl').value);
     fd.append('target_url',targetUrl);
     fd.append('delay',$('f-delay').value);
     fd.append('img_url',$('f-img').value);
+    if($('f-img-file').files[0]){
+      fd.append('img_file',$('f-img-file').files[0]);
+    }
     fd.append('site_title',$('f-stitle').value);
     fd.append('site_description',$('f-sdesc').value);
     fd.append('status',$('f-status').value);

@@ -1,7 +1,7 @@
 <?php
 /**
  * 暂停页面模板
- * @label 暂停页面
+ * @label 不跳转
  * @fields
  * @copyright 2026 wenyinos <ruojiner@hotmail.com>
  * @license MIT License
@@ -17,7 +17,7 @@ if (!defined('ROOT_PATH')) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>服务暂停提示</title>
+    <title>停止跳转</title>
     <style>
         body {
             font-family: "Microsoft YaHei", sans-serif;
@@ -62,7 +62,7 @@ if (!defined('ROOT_PATH')) {
 <body>
     <div class="container">
         <div class="icon">⚠️</div>
-        <h1>服务暂停访问</h1>
+        <h1>停止跳转</h1>
         <p>抱歉，该域名的转发服务目前已暂停。</p>
         <p>如需恢复访问，请联系域名所有者。</p>
         <div class="contact">

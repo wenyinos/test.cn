@@ -547,9 +547,10 @@ function get_templates(): array {
     if (!is_dir($template_dir)) return $templates;
     
     $files = glob($template_dir . '/*.php');
+    $allowed_templates = ['img', 'delay', 'click_delay']; // 允许的模板白名单
     foreach ($files as $file) {
         $name = basename($file, '.php');
-        if ($name === '_layout_header' || $name === '_layout_footer') continue;
+        if (!in_array($name, $allowed_templates)) continue;
         
         // 读取文件头部的配置注释
         $content = file_get_contents($file, false, null, 0, 800);
