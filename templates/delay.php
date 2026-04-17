@@ -45,56 +45,17 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
         .loading {
             text-align: center;
             padding: 36px 32px;
-            background: rgba(255,255,255,.88);
-            border: 1px solid rgba(108, 137, 255, .12);
-            border-radius: 24px;
-            box-shadow: 0 24px 50px rgba(27, 63, 147, .12);
-            max-width: 720px;
-            width: calc(100% - 40px);
         }
         .image {
             width: 512px;
             max-width: 100%;
             height: auto;
             margin-bottom: 18px;
-            cursor: default;
-            border-radius: 0;
-            box-shadow: none;
         }
-        .loading h1 {
-            margin: 18px 0 10px;
-            font-size: 28px;
-            color: #1d2a44;
-        }
-        .loading-text {
-            margin: 0 0 22px;
-            color: #5d6b89;
-            line-height: 1.7;
-        }
-        .spinner {
-            width: 52px;
-            height: 52px;
-            border: 4px solid rgba(60, 94, 216, .12);
-            border-top: 4px solid #4b74ff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        .jump-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 22px;
-            border-radius: 999px;
-            background: linear-gradient(135deg, #4b74ff, #14b87a);
-            color: #fff;
-            text-decoration: none;
-            font-weight: 600;
-            box-shadow: 0 14px 28px rgba(75, 116, 255, .22);
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .text {
+            color: #888;
+            font-size: 16px;
+            margin-bottom: 18px;
         }
     </style>
 </head>
@@ -102,19 +63,9 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
     <div class="loading">
         <?php if ($image_src): ?>
         <img src="<?= e($image_src) ?>" class="image" alt="<?= e($title) ?>">
+        <?php else: ?>
+        <div class="text">正在跳转...</div>
         <?php endif; ?>
-        <div class="spinner"></div>
-        <?php if ($title !== ''): ?>
-        <h1><?= e($title) ?></h1>
-        <?php endif; ?>
-        <?php if ($desc !== ''): ?>
-        <div class="loading-text"><?= e($desc) ?></div>
-        <?php endif; ?>
-        
-        <?php if ($is_show_link): ?>
-        <div style="font-size:14px;color:#666;margin-bottom:15px;word-break:break-all;">即将跳转至：<a href="<?= e($target_href) ?>" style="color:#4b74ff;text-decoration:none;"><?= e($target_href) ?></a></div>
-        <?php endif; ?>
-        
     </div>
     <script>
         (function() {

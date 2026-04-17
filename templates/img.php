@@ -16,7 +16,8 @@ if ($target_href === '') {
     exit('Invalid redirect');
 }
 
-$image_src = template_href($img_url ?? '', '/img.php');
+$has_img = !empty(trim($img_url ?? ''));
+$image_src = template_href($img_url ?? '', '');
 $title = is_string($site_title ?? null) ? trim($site_title) : '';
 $desc = is_string($site_description ?? null) ? trim($site_description) : '';
 ?>
@@ -40,79 +41,50 @@ $desc = is_string($site_description ?? null) ? trim($site_description) : '';
         .container {
             text-align: center;
             padding: 28px;
-            width: min(100%, 720px);
-            margin: 20px;
-            background: rgba(255,255,255,.9);
-            border-radius: 28px;
-            box-shadow: 0 24px 48px rgba(33, 61, 144, .12);
         }
         .image {
             width: 512px;
             max-width: 100%;
             height: auto;
-            margin-bottom: 18px;
             cursor: pointer;
-            border-radius: 0;
-            box-shadow: none;
-            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .image:hover {
-            transform: none;
-            box-shadow: none;
+        .text {
+            color: #888;
+            font-size: 16px;
         }
-        h1 {
-            margin: 0 0 10px;
-            font-size: 28px;
-            color: #1d2a44;
-        }
-        .loading-text {
-            color: #5d6b89;
-            margin: 0 0 16px;
-            line-height: 1.7;
-        }
-        .action {
-            display: inline-flex;
-            padding: 12px 22px;
-            border-radius: 999px;
-            background: linear-gradient(135deg, #4b74ff, #14b87a);
-            color: #fff;
+        .link {
+            color: #4b74ff;
+            font-size: 16px;
             text-decoration: none;
-            font-weight: 600;
-            box-shadow: 0 14px 28px rgba(75, 116, 255, .18);
+        }
+        .link:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <?php if ($image_src): ?>
         <img src="<?= e($image_src) ?>" class="image" onclick="redirect()" alt="<?= e($title) ?>" onerror="handleImageError(this)">
-        <?php if ($title !== ''): ?>
-        <h1><?= e($title) ?></h1>
+        <?php else: ?>
+        <a href="<?= e($target_href) ?>" class="link">点此跳转</a>
         <?php endif; ?>
-        <?php if ($desc !== ''): ?>
-        <div class="loading-text"><?= e($desc) ?></div>
-        <?php endif; ?>
-        <?php if ($is_show_link): ?>
-        <div style="font-size:14px;color:#666;margin-bottom:15px;word-break:break-all;">即将跳转至：<a href="<?= e($target_href) ?>" style="color:#4b74ff;text-decoration:none;"><?= e($target_href) ?></a></div>
-        <?php endif; ?>
-        
     </div>
     <script>
         (function() {
             'use strict';
             
             var targetUrl = <?= template_js($target_href) ?>;
+            var hasImage = <?= $has_img ? 'true' : 'false' ?>;
             
-            // 点击跳转
             window.redirect = function() {
                 window.location.replace(targetUrl);
             };
             
-            // 处理图片加载失败
             window.handleImageError = function(img) {
                 img.style.display = 'none';
                 redirect();
             };
-            
             
         })();
     </script>

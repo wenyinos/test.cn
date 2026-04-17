@@ -370,6 +370,7 @@ require dirname(__DIR__) . '/_layout_header.php';
       <label class="form-label">展示图片</label>
       <div id="img-preview-container" style="margin-bottom:10px;display:none">
         <img id="img-preview" src="" style="max-width:100%;max-height:150px;border-radius:8px;border:1px solid var(--border)">
+        <button type="button" id="btn-img-delete" class="btn btn-danger btn-sm" style="margin-top:8px">删除图片</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <input type="text" id="f-img" class="form-control" placeholder="图片 URL" style="flex:1">
@@ -615,9 +616,15 @@ require dirname(__DIR__) . '/_layout_header.php';
       img.src = url;
       container.style.display = 'block';
     } else {
+      img.src = '';
       container.style.display = 'none';
     }
   }
+
+  $('btn-img-delete').addEventListener('click', function(){
+    $('f-img').value = '';
+    showImgPreview('');
+  });
 
   $('f-img').addEventListener('input', function(){
     showImgPreview(this.value);
